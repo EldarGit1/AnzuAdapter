@@ -1,6 +1,6 @@
 #include "EngineLogger.h"
 
-#include "Core/Log/Log.h"
+DEFINE_LOG_CATEGORY(AnzuAdapter);
 
 void EngineLogger::Initialize()
 {
@@ -22,20 +22,19 @@ void EngineLogger::SetLogLevel(anzu::eLogLevel logLevel)
 
 void EngineLogger::handleLog(int logLevel, const char* log)
 {
-    using namespace anzu;
     switch (logLevel)
     {
         case 0:
-            Log::Debug(log);
+            UE_LOG(AnzuAdapter, Verbose, TEXT("%s"), log);
             break;
         case 1:
-            Log::Info(log);
+            UE_LOG(AnzuAdapter, Display, TEXT("%s"), log);
             break;
         case 2:
-            Log::Warning(log);
+            UE_LOG(AnzuAdapter, Warning, TEXT("%s"), log);
             break;
         case 3:
-            Log::Error(log);
+            UE_LOG(AnzuAdapter, Error, TEXT("%s"), log);
             break;
         default:
             break;

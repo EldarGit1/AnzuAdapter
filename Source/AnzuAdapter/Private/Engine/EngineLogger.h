@@ -1,7 +1,7 @@
 #pragma once
 
 #include "AnzuAdapter/Private/Core/Log/Log.h"
-
+DECLARE_LOG_CATEGORY_EXTERN(AnzuAdapter, Log, All);
 class EngineLogger
 {
 public:

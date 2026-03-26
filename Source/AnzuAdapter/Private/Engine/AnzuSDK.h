@@ -1,8 +1,8 @@
 #pragma once
-
-//#include "Component.h"
-
+#include "CoreMinimal.h"
+#include "Tickable.h"
 #include "AnzuAdapter/Private/Engine/EngineLogger.h"
+#include "AnzuSDK.generated.h"
 
 struct AppConfig
 {
@@ -13,18 +13,36 @@ struct AppConfig
     bool DisableIDFAPopupOnSDKInit;
     anzu::eLogLevel LogLevel;
 };
-#if 0
-class AnzuSDK : public Component
+
+UCLASS()
+class ANZUADAPTER_API UAnzuSDK : public UObject, public FTickableGameObject
 {
+    GENERATED_BODY()
 public:
     void Initialize(const AppConfig& appConfig);
     void Uninitialize() const;
 
     // From component
-	void tick() override;
-	void onDestroy() override;
+	virtual void Tick(float DeltaTime) override;
+
+    virtual TStatId GetStatId() const override
+    {
+        RETURN_QUICK_DECLARE_CYCLE_STAT(UMyObject, STATGROUP_Tickables);
+    }
+
+    virtual bool IsTickable() const override
+    {
+        return true;
+    }
+
+    virtual bool IsTickableInEditor() const override
+    {
+        return false;
+    }
+
+	void BeginDestroy() override;
+
 
 private:
 	bool _anzuLoaded = false;
 };
-#endif

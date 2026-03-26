@@ -1,13 +1,10 @@
 #include "AnzuSDK.h"
 
-#if 0
-#include "Timer.h"
+#include "AnzuAdapter/Private/Core/AnzuCore.h"
+#include "AnzuAdapter/Private/Engine/EngineTexture2D.h"
+#include "AnzuAdapter/Private/Core/Loader/AnzuLoader.h"
 
-#include "AnzuAdapter/Core/AnzuCore.h"
-#include "AnzuAdapter/Engine/EngineTexture2D.h"
-#include "AnzuAdapter/Core/Loader/common/AnzuLoader.h"
-
-void AnzuSDK::Initialize(const AppConfig &appConfig)
+void UAnzuSDK::Initialize(const AppConfig &appConfig)
 {
     _anzuLoaded = AnzuLoader::LoadLib();
 
@@ -16,7 +13,7 @@ void AnzuSDK::Initialize(const AppConfig &appConfig)
 		// Engine level initialization
 		EngineLogger::Initialize();
 		EngineLogger::SetLogLevel(appConfig.LogLevel);
-		EngineTexture2D::Initialize();
+		//EngineTexture2D::Initialize();
 
 		// Core level initialization
 		anzu::AdapterConfig adapterConfig = {
@@ -31,7 +28,7 @@ void AnzuSDK::Initialize(const AppConfig &appConfig)
 	}
 }
 
-void AnzuSDK::Uninitialize() const
+void UAnzuSDK::Uninitialize() const
 {
     if (_anzuLoaded)
     {
@@ -40,16 +37,15 @@ void AnzuSDK::Uninitialize() const
     }
 }
 
-void AnzuSDK::tick()
+void UAnzuSDK::Tick(float DeltaTime)
 {
 	if (_anzuLoaded)
 	{
-        anzu::AnzuCore::Update(Timer::DeltaTime());
+        anzu::AnzuCore::Update(DeltaTime);
 	}
 }
 
-void AnzuSDK::onDestroy()
+void UAnzuSDK::BeginDestroy()
 {
     Uninitialize();
 }
-#endif

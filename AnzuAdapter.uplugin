@@ -1,0 +1,24 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "AnzuAdapter",
+	"Description": "Anzu Adapter 2.0",
+	"Category": "Other",
+	"CreatedBy": "Eldar",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": true,
+	"IsBetaVersion": true,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "AnzuAdapter",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	]
+}

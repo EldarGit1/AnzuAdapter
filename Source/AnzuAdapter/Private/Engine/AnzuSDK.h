@@ -40,7 +40,7 @@ public:
         return false;
     }
 
-	void BeginDestroy() override;
+	//void BeginDestroy() override;
 
 
 private:

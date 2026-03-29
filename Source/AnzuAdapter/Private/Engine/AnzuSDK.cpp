@@ -44,8 +44,9 @@ void UAnzuSDK::Tick(float DeltaTime)
         anzu::AnzuCore::Update(DeltaTime);
 	}
 }
-
+/*
 void UAnzuSDK::BeginDestroy()
 {
     Uninitialize();
 }
+*/

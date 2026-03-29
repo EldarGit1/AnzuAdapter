@@ -20,7 +20,7 @@ class ANZUADAPTER_API UAnzuSDK : public UObject, public FTickableGameObject
     GENERATED_BODY()
 public:
     void Initialize(const AppConfig& appConfig);
-    void Uninitialize() const;
+    void Uninitialize();
 
     // From component
 	virtual void Tick(float DeltaTime) override;

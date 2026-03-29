@@ -6,7 +6,7 @@
 
 void UAnzuSDK::Initialize(const AppConfig &appConfig)
 {
-    _anzuLoaded = AnzuLoader::LoadLib();
+    _anzuLoaded = true;//AnzuLoader::LoadLib();
 
 	if (_anzuLoaded)
 	{
@@ -28,7 +28,7 @@ void UAnzuSDK::Initialize(const AppConfig &appConfig)
 	}
 }
 
-void UAnzuSDK::Uninitialize() const
+void UAnzuSDK::Uninitialize()
 {
     if (_anzuLoaded)
     {

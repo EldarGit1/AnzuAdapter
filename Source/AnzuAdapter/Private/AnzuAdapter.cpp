@@ -8,6 +8,9 @@
 #include "HAL/PlatformProcess.h"
 #include "AnzuAdapterLibrary/ExampleLibrary.h"
 
+#include "Engine/EngineLogger.h"
+#include "Core/Log/Log.h"
+
 #define LOCTEXT_NAMESPACE "FAnzuAdapterModule"
 
 
@@ -16,10 +19,11 @@ void FAnzuAdapterModule::StartupModule()
 	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
 
 	// Get the base directory of this plugin
-	FString BaseDir = IPluginManager::Get().FindPlugin("AnzuAdapter")->GetBaseDir();
+	//FString BaseDir = IPluginManager::Get().FindPlugin("AnzuAdapter")->GetBaseDir();
 
 	// Add on the relative location of the third party dll and load it
-	FString LibraryPath;
+	//FString LibraryPath;
+	/*
 #if PLATFORM_WINDOWS
 	LibraryPath = FPaths::Combine(*BaseDir, TEXT("Binaries/ThirdParty/AnzuAdapterLibrary/Win64/ExampleLibrary.dll"));
 #elif PLATFORM_MAC
@@ -39,13 +43,28 @@ void FAnzuAdapterModule::StartupModule()
 	{
 		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ThirdPartyLibraryError", "Failed to load example third party library"));
 	}
+	*/
+	EngineLogger::Initialize();
+	sdk = NewObject<UAnzuSDK>();
+	AppConfig appConfig = {
+		"88455eafeeb2aaeff910feb5",
+		"appId",
+		true,
+		false,
+		false,
+		anzu::eLogLevel::LL_Debug
+	};
+	sdk->Initialize(appConfig);
+
+	anzu::Log::Info("Anzu Adapter module has started!");
 }
 
 void FAnzuAdapterModule::ShutdownModule()
 {
 	// This function may be called during shutdown to clean up your module.  For modules that support dynamic reloading,
 	// we call this function before unloading the module.
-
+	sdk->Uninitialize();
+	EngineLogger::Uninitialize();
 	// Free the dll handle
 	FPlatformProcess::FreeDllHandle(ExampleLibraryHandle);
 	ExampleLibraryHandle = nullptr;

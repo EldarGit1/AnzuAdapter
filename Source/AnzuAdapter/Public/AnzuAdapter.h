@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Modules/ModuleManager.h"
+#include "../Private/Engine/AnzuSDK.h"
 
 class FAnzuAdapterModule : public IModuleInterface
 {
@@ -15,4 +16,5 @@ public:
 private:
 	/** Handle to the test dll we will load */
 	void*	ExampleLibraryHandle;
+	UAnzuSDK* sdk;
 };

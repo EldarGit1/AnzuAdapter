@@ -14,9 +14,15 @@ public class AnzuAdapter : ModuleRules
 	public AnzuAdapter(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-
-		Print(ModuleDirectory);
-		String pathToLibs = Path.Combine(ModuleDirectory, "..", "anzuSDK", "libs", "windows");
+		if(File.Exists(Path.Combine(PluginDirectory, "Source", "anzuSDK", "libs", "windows", "anzu.dll")))
+		{
+			Print("Found Anzu DLL");
+		}
+		else
+		{
+			Print("Anzu DLL not found!");
+		}
+		String pathToLibs = Path.Combine(PluginDirectory, "Source", "anzuSDK", "libs", "windows");
         RuntimeDependencies.Add(Path.Combine(pathToLibs, "anzu.dll"));
         //Link against .lib
         PublicAdditionalLibraries.Add(Path.Combine(pathToLibs, "anzu.lib"));
@@ -47,7 +53,9 @@ public class AnzuAdapter : ModuleRules
 			{
 				"Core",
 				"AnzuAdapterLibrary",
-				"Projects"
+				"Projects",
+				"CoreUObject",
+				"Engine"
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);

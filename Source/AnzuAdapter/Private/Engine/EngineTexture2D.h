@@ -1,11 +1,7 @@
 #pragma once
-
-#if 0 
-
-#include "Texture.h"
-#include "Renderer.h"
-
 #include "AnzuAdapter/Private/Core/Render/RenderManager.h"
+
+class UTexture2D;
 
 class EngineTexture2D : public anzu::TextureInterface
 {
@@ -20,6 +16,5 @@ public:
     virtual ~EngineTexture2D();
 
 private:
-    Texture* _texture;
+    UTexture2D* _texture;
 };
-#endif

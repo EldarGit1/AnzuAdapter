@@ -3,6 +3,7 @@
 #include "AnzuAdapter/Private/Core/AnzuCore.h"
 #include "AnzuAdapter/Private/Engine/EngineTexture2D.h"
 #include "AnzuAdapter/Private/Core/Loader/AnzuLoader.h"
+#include "Core/Log/Log.h"
 
 void UAnzuSDK::Initialize(const AppConfig &appConfig)
 {
@@ -13,7 +14,7 @@ void UAnzuSDK::Initialize(const AppConfig &appConfig)
 		// Engine level initialization
 		EngineLogger::Initialize();
 		EngineLogger::SetLogLevel(appConfig.LogLevel);
-		//EngineTexture2D::Initialize();
+		EngineTexture2D::Initialize();
 
 		// Core level initialization
 		anzu::AdapterConfig adapterConfig = {

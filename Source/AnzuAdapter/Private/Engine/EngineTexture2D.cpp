@@ -3,6 +3,7 @@
 #include "Engine/Texture2D.h"
 #include "Engine/TextureDefines.h"
 #include "Misc/AssertionMacros.h"
+#include "Core/Log/Log.h"
 
 EngineTexture2D::EngineTexture2D()
     : _texture(nullptr)
@@ -32,6 +33,7 @@ void EngineTexture2D::UpdateTexture(int width,
                                     int size,
                                     bool switchRB)
 {
+    anzu::Log::Error("On update texture");
     if (_texture && data && size > 0)
     {
         check(width > 0 && height > 0);
@@ -69,7 +71,7 @@ void EngineTexture2D::UpdateTexture(int width,
 bool EngineTexture2D::CreateTexture(anzu::TextureInfo& textureInfo)
 {
     bool isCreated = false;
-
+    anzu::Log::Error("On create texture");
     if (textureInfo.Width > 0 && textureInfo.Height > 0)
     {
         if (_texture)

@@ -2,6 +2,7 @@
 #include "../Core/AnzuCore.h"
 #include "../Core/Log/Log.h"
 #include "EngineTexture2D.h"
+#include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
 using namespace anzu;
@@ -12,7 +13,7 @@ AAnzuAd::AAnzuAd()
     PrimaryActorTick.SetTickFunctionEnable(true);
     PrimaryActorTick.bStartWithTickEnabled = true;
 
-    Visibility = { 1.0f, 1.0f, 0.0f };
+    _visibility = { 1.0f, 1.0f, 0.0f };
 }
 
 void AAnzuAd::BeginPlay()
@@ -126,9 +127,220 @@ void AAnzuAd::PostInitializeComponents()
 
 void AAnzuAd::updateVis()
 {
+    calcAngle();
+    calcVisiblity();
+    calcViewability();
+
+    anzu::Log::Error("Angle is %f", _visibility.Angle);
+    anzu::Log::Error("Visibility is %f", _visibility.Visibility);
+    anzu::Log::Error("Viewability is %f", _visibility.Viewability);
+
     ChannelManager::TryUpdateVisibilityStats(
             _channel,
-            Visibility);
+            _visibility);
+}
+
+void AAnzuAd::calcAngle()
+{
+    UStaticMeshComponent* staticMeshComponent = GetStaticMeshComponent();
+    if (staticMeshComponent)
+    {
+        APlayerCameraManager* cameraManager = UGameplayStatics::GetPlayerCameraManager(this, 0);
+        if (cameraManager)
+        {
+            const FVector cameraForward = cameraManager->GetActorForwardVector().GetSafeNormal();
+            const FVector meshForward = staticMeshComponent->GetForwardVector().GetSafeNormal();
+            const float dot = FMath::Clamp(FVector::DotProduct(cameraForward, meshForward), -1.0f, 1.0f);
+            _visibility.Angle = FMath::RadiansToDegrees(FMath::Acos(dot));
+        }
+    }
+}
+
+void AAnzuAd::calcVisiblity()
+{
+    APlayerController* playerController = UGameplayStatics::GetPlayerController(this, 0);
+    if (playerController)
+    {
+        int32 viewportX = 0;
+        int32 viewportY = 0;
+        playerController->GetViewportSize(viewportX, viewportY);
+
+        if (viewportX > 0 && viewportY > 0)
+        {
+            FVector boundsOrigin;
+            FVector boundsExtent;
+            GetActorBounds(true, boundsOrigin, boundsExtent);
+
+            TArray<FVector> corners;
+            corners.Reserve(8);
+            corners.Add(boundsOrigin + FVector( boundsExtent.X,  boundsExtent.Y,  boundsExtent.Z));
+            corners.Add(boundsOrigin + FVector( boundsExtent.X,  boundsExtent.Y, -boundsExtent.Z));
+            corners.Add(boundsOrigin + FVector( boundsExtent.X, -boundsExtent.Y,  boundsExtent.Z));
+            corners.Add(boundsOrigin + FVector( boundsExtent.X, -boundsExtent.Y, -boundsExtent.Z));
+            corners.Add(boundsOrigin + FVector(-boundsExtent.X,  boundsExtent.Y,  boundsExtent.Z));
+            corners.Add(boundsOrigin + FVector(-boundsExtent.X,  boundsExtent.Y, -boundsExtent.Z));
+            corners.Add(boundsOrigin + FVector(-boundsExtent.X, -boundsExtent.Y,  boundsExtent.Z));
+            corners.Add(boundsOrigin + FVector(-boundsExtent.X, -boundsExtent.Y, -boundsExtent.Z));
+
+            bool bHasProjectedPoint = false;
+            float minX = TNumericLimits<float>::Max();
+            float minY = TNumericLimits<float>::Max();
+            float maxX = TNumericLimits<float>::Lowest();
+            float maxY = TNumericLimits<float>::Lowest();
+
+            for (const FVector& corner : corners)
+            {
+                FVector2D screenPos;
+                if (playerController->ProjectWorldLocationToScreen(corner, screenPos, true))
+                {
+                    bHasProjectedPoint = true;
+                    minX = FMath::Min(minX, screenPos.X);
+                    minY = FMath::Min(minY, screenPos.Y);
+                    maxX = FMath::Max(maxX, screenPos.X);
+                    maxY = FMath::Max(maxY, screenPos.Y);
+                }
+            }
+
+            if (bHasProjectedPoint)
+            {
+                const float clampedMinX = FMath::Clamp(minX, 0.0f, static_cast<float>(viewportX));
+                const float clampedMinY = FMath::Clamp(minY, 0.0f, static_cast<float>(viewportY));
+                const float clampedMaxX = FMath::Clamp(maxX, 0.0f, static_cast<float>(viewportX));
+                const float clampedMaxY = FMath::Clamp(maxY, 0.0f, static_cast<float>(viewportY));
+
+                const float actorScreenWidth = FMath::Max(0.0f, clampedMaxX - clampedMinX);
+                const float actorScreenHeight = FMath::Max(0.0f, clampedMaxY - clampedMinY);
+                const float actorScreenArea = actorScreenWidth * actorScreenHeight;
+                const float totalScreenArea = static_cast<float>(viewportX) * static_cast<float>(viewportY);
+
+                _visibility.Visibility = FMath::Clamp(actorScreenArea / totalScreenArea, 0.0f, 1.0f);
+            }
+            else
+            {
+                _visibility.Visibility = 0.0f;
+            }
+        }
+        else
+        {
+            _visibility.Visibility = 0.0f;
+        }
+    }
+    else
+    {
+        _visibility.Visibility = 0.0f;
+    }
+}
+
+void AAnzuAd::calcViewability()
+{
+    UStaticMeshComponent* staticMeshComponent = GetStaticMeshComponent();
+    APlayerController* playerController = UGameplayStatics::GetPlayerController(this, 0);
+    if (!staticMeshComponent || !playerController)
+    {
+        _visibility.Viewability = 0.0f;
+        return;
+    }
+
+    FVector boundsOrigin;
+    FVector boundsExtent;
+    GetActorBounds(true, boundsOrigin, boundsExtent);
+
+    TArray<FVector> corners;
+    corners.Reserve(8);
+    corners.Add(boundsOrigin + FVector( boundsExtent.X,  boundsExtent.Y,  boundsExtent.Z));
+    corners.Add(boundsOrigin + FVector( boundsExtent.X,  boundsExtent.Y, -boundsExtent.Z));
+    corners.Add(boundsOrigin + FVector( boundsExtent.X, -boundsExtent.Y,  boundsExtent.Z));
+    corners.Add(boundsOrigin + FVector( boundsExtent.X, -boundsExtent.Y, -boundsExtent.Z));
+    corners.Add(boundsOrigin + FVector(-boundsExtent.X,  boundsExtent.Y,  boundsExtent.Z));
+    corners.Add(boundsOrigin + FVector(-boundsExtent.X,  boundsExtent.Y, -boundsExtent.Z));
+    corners.Add(boundsOrigin + FVector(-boundsExtent.X, -boundsExtent.Y,  boundsExtent.Z));
+    corners.Add(boundsOrigin + FVector(-boundsExtent.X, -boundsExtent.Y, -boundsExtent.Z));
+
+    bool bHasProjectedPoint = false;
+    float minX = TNumericLimits<float>::Max();
+    float minY = TNumericLimits<float>::Max();
+    float maxX = TNumericLimits<float>::Lowest();
+    float maxY = TNumericLimits<float>::Lowest();
+
+    for (const FVector& corner : corners)
+    {
+        FVector2D screenPos;
+        if (playerController->ProjectWorldLocationToScreen(corner, screenPos, true))
+        {
+            bHasProjectedPoint = true;
+            minX = FMath::Min(minX, screenPos.X);
+            minY = FMath::Min(minY, screenPos.Y);
+            maxX = FMath::Max(maxX, screenPos.X);
+            maxY = FMath::Max(maxY, screenPos.Y);
+        }
+    }
+
+    if (!bHasProjectedPoint || maxX <= minX || maxY <= minY)
+    {
+        _visibility.Viewability = 0.0f;
+        return;
+    }
+
+    int32 viewportX = 0;
+    int32 viewportY = 0;
+    playerController->GetViewportSize(viewportX, viewportY);
+    if (viewportX <= 0 || viewportY <= 0)
+    {
+        _visibility.Viewability = 0.0f;
+        return;
+    }
+
+    constexpr int32 samplesX = 8;
+    constexpr int32 samplesY = 8;
+    int32 totalSamples = 0;
+    int32 visibleSamples = 0;
+
+    const float width = maxX - minX;
+    const float height = maxY - minY;
+
+    FCollisionQueryParams queryParams(SCENE_QUERY_STAT(AnzuViewability), true);
+    queryParams.bReturnPhysicalMaterial = false;
+
+    for (int32 y = 0; y < samplesY; ++y)
+    {
+        for (int32 x = 0; x < samplesX; ++x)
+        {
+            ++totalSamples;
+
+            const float sampleX = minX + ((static_cast<float>(x) + 0.5f) / static_cast<float>(samplesX)) * width;
+            const float sampleY = minY + ((static_cast<float>(y) + 0.5f) / static_cast<float>(samplesY)) * height;
+
+            if (sampleX < 0.0f || sampleX > static_cast<float>(viewportX) || sampleY < 0.0f || sampleY > static_cast<float>(viewportY))
+            {
+                continue;
+            }
+
+            FVector rayOrigin;
+            FVector rayDirection;
+            if (!playerController->DeprojectScreenPositionToWorld(sampleX, sampleY, rayOrigin, rayDirection))
+            {
+                continue;
+            }
+
+            FHitResult hit;
+            const FVector traceStart = rayOrigin;
+            const FVector traceEnd = traceStart + rayDirection.GetSafeNormal() * 100000.0f;
+            const bool bHit = GetWorld() && GetWorld()->LineTraceSingleByChannel(hit, traceStart, traceEnd, ECC_Visibility, queryParams);
+
+            if (bHit && hit.GetActor() == this)
+            {
+                ++visibleSamples;
+            }
+        }
+    }
+
+    if (totalSamples <= 0)
+    {
+        _visibility.Viewability = 0.0f;
+        return;
+    }
+
+    _visibility.Viewability = FMath::Clamp(static_cast<float>(visibleSamples) / static_cast<float>(totalSamples), 0.0f, 1.0f);
 }
 
 void AAnzuAd::applyShrink()

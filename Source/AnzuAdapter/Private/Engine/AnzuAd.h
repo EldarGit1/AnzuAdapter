@@ -12,7 +12,7 @@ class ANZUADAPTER_API AAnzuAd : public AStaticMeshActor
 
     UTexture2D* _texture;
     anzu::ChannelInfo* _channel;
-    anzu::VisibilityInfo Visibility;
+    anzu::VisibilityInfo _visibility;
 
     float original_scale_x = 1.f;
     float original_scale_y = 1.f;
@@ -20,6 +20,10 @@ class ANZUADAPTER_API AAnzuAd : public AStaticMeshActor
     void applyTexture();
     void updateVis();
     void applyShrink();
+
+    void calcAngle();
+    void calcVisiblity();
+    void calcViewability();
 
 public:
 	AAnzuAd();

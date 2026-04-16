@@ -1,6 +1,7 @@
 #include "Engine/AnzuAd.h"
 #include "../Core/AnzuCore.h"
 #include "../Core/Log/Log.h"
+#include "Engine/AnzuCamera.h"
 #include "EngineTexture2D.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -141,7 +142,9 @@ void AAnzuAd::Tick(float DeltaTime)
 {
     if (_metricsWidgetComponent)
     {
-        APlayerCameraManager* cameraManager = UGameplayStatics::GetPlayerCameraManager(this, 0);
+        AnzuCamera& anzuCamera = AnzuCamera::Get();
+        anzuCamera.Update(this, 0);
+        APlayerCameraManager* cameraManager = anzuCamera.GetCurrentActiveCamera();
         if (cameraManager)
         {
             const FVector widgetLocation = GetActorLocation() + (GetActorForwardVector() * _widgetForwardOffset);
@@ -196,7 +199,9 @@ void AAnzuAd::calcAngle()
     UStaticMeshComponent* staticMeshComponent = GetStaticMeshComponent();
     if (staticMeshComponent)
     {
-        APlayerCameraManager* cameraManager = UGameplayStatics::GetPlayerCameraManager(this, 0);
+        AnzuCamera& anzuCamera = AnzuCamera::Get();
+        anzuCamera.Update(this, 0);
+        APlayerCameraManager* cameraManager = anzuCamera.GetCurrentActiveCamera();
         if (cameraManager)
         {
             const FVector cameraForward = cameraManager->GetActorForwardVector().GetSafeNormal();

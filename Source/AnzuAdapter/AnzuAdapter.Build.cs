@@ -42,6 +42,7 @@ public class AnzuAdapter : ModuleRules
 				Path.Combine(ModuleDirectory, "Private", "Core", "Utilities"),
 				Path.Combine(ModuleDirectory, ".."),
 				Path.Combine(ModuleDirectory, "Private", "Engine"),
+				Path.Combine(ModuleDirectory, "Private", "UI"),
 
 				// ... add other private include paths required here ...
 			}
@@ -64,7 +65,9 @@ public class AnzuAdapter : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				// ... add private dependencies that you statically link with here ...	
+				"UMG",
+				"Slate",
+				"SlateCore"
 			}
 			);
 		

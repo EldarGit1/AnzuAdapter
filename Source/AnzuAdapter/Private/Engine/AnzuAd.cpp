@@ -4,6 +4,8 @@
 #include "EngineTexture2D.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Components/WidgetComponent.h"
+#include "UI/AnzuAdMetricsWidget.h"
 
 using namespace anzu;
 
@@ -12,6 +14,18 @@ AAnzuAd::AAnzuAd()
     PrimaryActorTick.bCanEverTick = true;
     PrimaryActorTick.SetTickFunctionEnable(true);
     PrimaryActorTick.bStartWithTickEnabled = true;
+
+    _metricsWidget = nullptr;
+    _metricsWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("MetricsWidgetComponent"));
+    if (_metricsWidgetComponent)
+    {
+        _metricsWidgetComponent->SetupAttachment(GetStaticMeshComponent());
+        _metricsWidgetComponent->SetWidgetSpace(EWidgetSpace::Screen);
+        _metricsWidgetComponent->SetBlendMode(EWidgetBlendMode::Transparent);
+        _metricsWidgetComponent->SetTwoSided(true);
+        _metricsWidgetComponent->SetDrawAtDesiredSize(false);
+        // Draw size and forward offset are finalised at BeginPlay from actual mesh bounds
+    }
 
     _visibility = { 1.0f, 1.0f, 0.0f };
 }
@@ -78,7 +92,6 @@ void AAnzuAd::BeginPlay()
         Log::Error("Channel created!!");
     }
     
-
     _channel->IsVisible = true;
 
     _channel->OnPlaybackEmpty.Register( [this] { /*OnPlaybackEmpty.Invoke();*/ Log::Error("EMPTY"); });
@@ -91,7 +104,9 @@ void AAnzuAd::BeginPlay()
 
     _channel->OnImpression.Register([this] { /*OnChannelImpression.Invoke();*/Log::Error("IMPRESSION"); });
 
-    _channel->OnUpdateVisibility.Register([this] { updateVis(); });
+    _channel->OnUpdateVisibility.Register([this] {
+        AsyncTask(ENamedThreads::GameThread, [this]() { updateVis(); });
+    });
 
     _channel->OnApplyTexture.Register([this] { applyTexture(); });
 
@@ -99,12 +114,43 @@ void AAnzuAd::BeginPlay()
         AsyncTask(ENamedThreads::GameThread, [this]() { applyShrink(); });
     });
 
+    if (_metricsWidgetComponent)
+    {
+        _metricsWidgetComponent->SetWidget(CreateWidget<UAnzuAdMetricsWidget>(GetWorld()));
+        _metricsWidget = Cast<UAnzuAdMetricsWidget>(_metricsWidgetComponent->GetUserWidgetObject());
+
+        // Derive draw size and forward offset from the actor mesh bounds at spawn time.
+        // These are fixed for the lifetime of the actor regardless of later scale changes.
+        FVector boundsOrigin, boundsExtent;
+        GetActorBounds(false, boundsOrigin, boundsExtent);
+
+        // Width = Y extent * 2, Height = Z extent * 2 (Unreal units → widget pixels 1:1)
+        const int32 drawW = FMath::Max(FMath::RoundToInt(boundsExtent.Y * 2.0f), 64);
+        const int32 drawH = FMath::Max(FMath::RoundToInt(boundsExtent.Z * 2.0f), 32);
+        _metricsWidgetComponent->SetDrawSize(FIntPoint(drawW, drawH));
+
+        // Push the widget just past the front face of the mesh (+5 UU gap)
+        _widgetForwardOffset = boundsExtent.X + 5.0f;
+    }
+
     Super::BeginPlay();
 
 }
 
 void AAnzuAd::Tick(float DeltaTime)
 {
+    if (_metricsWidgetComponent)
+    {
+        APlayerCameraManager* cameraManager = UGameplayStatics::GetPlayerCameraManager(this, 0);
+        if (cameraManager)
+        {
+            const FVector widgetLocation = GetActorLocation() + (GetActorForwardVector() * _widgetForwardOffset);
+            _metricsWidgetComponent->SetWorldLocation(widgetLocation);
+            const FRotator lookAtRotation = (cameraManager->GetCameraLocation() - widgetLocation).Rotation();
+            _metricsWidgetComponent->SetWorldRotation(lookAtRotation);
+        }
+    }
+
     /*
     ChannelManager::TryUpdateVisibilityStats(
             _channel,
@@ -130,6 +176,11 @@ void AAnzuAd::updateVis()
     calcAngle();
     calcVisiblity();
     calcViewability();
+
+    if (_metricsWidget)
+    {
+        _metricsWidget->UpdateMetrics(_visibility.Angle, _visibility.Visibility, _visibility.Viewability);
+    }
 
     anzu::Log::Error("Angle is %f", _visibility.Angle);
     anzu::Log::Error("Visibility is %f", _visibility.Visibility);

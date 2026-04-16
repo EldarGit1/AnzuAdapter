@@ -1,5 +1,7 @@
 #pragma once
 #include "CoreMinimal.h"
+#include "Engine/World.h"
+#include "Subsystems/GameInstanceSubsystem.h"
 #include "Tickable.h"
 #include "AnzuAdapter/Private/Engine/EngineLogger.h"
 #include "AnzuSDK.generated.h"
@@ -15,14 +17,15 @@ struct AppConfig
 };
 
 UCLASS()
-class ANZUADAPTER_API UAnzuSDK : public UObject, public FTickableGameObject
+class ANZUADAPTER_API UAnzuSDK : public UGameInstanceSubsystem, public FTickableGameObject
 {
     GENERATED_BODY()
 public:
-    void Initialize(const AppConfig& appConfig);
-    void Uninitialize();
+    // UGameInstanceSubsystem interface
+    virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+    virtual void Deinitialize() override;
 
-    // From component
+    // FTickableGameObject interface
 	virtual void Tick(float DeltaTime) override;
 
     virtual TStatId GetStatId() const override
@@ -42,7 +45,12 @@ public:
 
 	//void BeginDestroy() override;
 
-
 private:
+    void InitializeSdk(const AppConfig& appConfig);
+    void UninitializeSdk();
+
+
 	bool _anzuLoaded = false;
+    bool _isSdkInitialized = false;
+
 };

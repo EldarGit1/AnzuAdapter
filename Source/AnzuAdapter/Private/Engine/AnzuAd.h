@@ -14,6 +14,13 @@ class ANZUADAPTER_API AAnzuAd : public AStaticMeshActor
     anzu::ChannelInfo* _channel;
     anzu::VisibilityInfo Visibility;
 
+    float original_scale_x = 1.f;
+    float original_scale_y = 1.f;
+
+    void applyTexture();
+    void updateVis();
+    void applyShrink();
+
 public:
 	AAnzuAd();
 

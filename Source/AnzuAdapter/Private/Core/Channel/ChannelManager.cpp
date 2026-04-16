@@ -183,7 +183,6 @@ namespace anzu
         VisibilityInfo newChannelVis(channelInfo->VisibilityInfo);
         bool adPass = VisibilityPassMinimum(adVis);
         bool channelPass = VisibilityPassMinimum(newChannelVis);
-        if(adPass) Log::Error("VIS OK!");
         if (adPass && channelPass == false)
         {
             newChannelVis = adVis;

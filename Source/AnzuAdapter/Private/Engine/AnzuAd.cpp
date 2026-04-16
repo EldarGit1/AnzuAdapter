@@ -12,7 +12,7 @@ AAnzuAd::AAnzuAd()
     PrimaryActorTick.SetTickFunctionEnable(true);
     PrimaryActorTick.bStartWithTickEnabled = true;
 
-    Visibility = { 100, 100, 90 };
+    Visibility = { 1.0f, 1.0f, 0.0f };
 }
 
 void AAnzuAd::BeginPlay()
@@ -79,6 +79,7 @@ void AAnzuAd::BeginPlay()
     
 
     _channel->IsVisible = true;
+
     _channel->OnPlaybackEmpty.Register( [this] { /*OnPlaybackEmpty.Invoke();*/ Log::Error("EMPTY"); });
 
     _channel->OnPlaybackInit.Register( [this] { /*OnPlaybackInit.Invoke();*/ Log::Error("INIT"); });
@@ -89,24 +90,79 @@ void AAnzuAd::BeginPlay()
 
     _channel->OnImpression.Register([this] { /*OnChannelImpression.Invoke();*/Log::Error("IMPRESSION"); });
 
-    _channel->OnUpdateVisibility.Register([this] {
-        ChannelManager::TryUpdateVisibilityStats(
-            _channel,
-            Visibility);
-        }
-    );
+    _channel->OnUpdateVisibility.Register([this] { updateVis(); });
+
+    _channel->OnApplyTexture.Register([this] { applyTexture(); });
+
+    _channel->OnShrinkToFit.Register([this] {
+        AsyncTask(ENamedThreads::GameThread, [this]() { applyShrink(); });
+    });
+
     Super::BeginPlay();
 
 }
 
 void AAnzuAd::Tick(float DeltaTime)
 {
+    /*
     ChannelManager::TryUpdateVisibilityStats(
             _channel,
             Visibility);
+    */
+    applyTexture();
 
-    UStaticMeshComponent* staticMeshComponent = GetStaticMeshComponent();    
-    //apply every tick!
+    Super::Tick(DeltaTime);
+}
+
+void AAnzuAd::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    Super::EndPlay(EndPlayReason);
+}
+
+void AAnzuAd::PostInitializeComponents()
+{
+    Super::PostInitializeComponents();
+}
+
+void AAnzuAd::updateVis()
+{
+    ChannelManager::TryUpdateVisibilityStats(
+            _channel,
+            Visibility);
+}
+
+void AAnzuAd::applyShrink()
+{
+    if(!_channel || !_channel->IsShrinkToFit)
+    {
+        return;
+    }
+    float newScaleX = original_scale_x;
+    float newScaleY = original_scale_y;
+
+    float new_ar = _channel->NextTextureInfo.AspectRatio;
+    float orig_ar = newScaleX / newScaleY;
+
+    if(new_ar < orig_ar)
+    {
+        newScaleX = original_scale_x * new_ar / orig_ar;
+    }
+    else if(new_ar > orig_ar)
+    {
+        newScaleY = original_scale_y * orig_ar / new_ar;
+    }
+
+    UStaticMeshComponent* staticMeshComponent = GetStaticMeshComponent();
+    if(staticMeshComponent)
+    {
+        FVector currentScale = staticMeshComponent->GetRelativeScale3D();
+        staticMeshComponent->SetRelativeScale3D(FVector(currentScale.Z, newScaleX, newScaleY));
+    }
+}
+
+void AAnzuAd::applyTexture()
+{
+    UStaticMeshComponent* staticMeshComponent = GetStaticMeshComponent();
     UTexture2D* texPtr = nullptr;
     if (_channel->CurrTextureInfo.Texture)
     {
@@ -159,16 +215,4 @@ void AAnzuAd::Tick(float DeltaTime)
         Log::Error("texPtr is null, texture swap skipped.");
     }
 
-
-    Super::Tick(DeltaTime);
-}
-
-void AAnzuAd::EndPlay(const EEndPlayReason::Type EndPlayReason)
-{
-    Super::EndPlay(EndPlayReason);
-}
-
-void AAnzuAd::PostInitializeComponents()
-{
-    Super::PostInitializeComponents();
 }

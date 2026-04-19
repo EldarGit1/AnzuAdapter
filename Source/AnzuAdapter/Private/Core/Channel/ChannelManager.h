@@ -7,6 +7,7 @@
 #include "AnzuAdapter/Private/Core/Channel/AnzuChannel.h"
 #include "AnzuAdapter/Private/Core/Render/RenderManager.h"
 
+#include <atomic>
 #include <map>
 #include <random>
 
@@ -98,6 +99,8 @@ namespace anzu
         ChannelManager() = delete;
 
     private:
+        static std::atomic<bool> _isUninitializing;
+
         static float _time;
         static float _updateVisibilityInterval;
         static std::map<const int, ChannelInfo*> _runningChannelsById; // channelId

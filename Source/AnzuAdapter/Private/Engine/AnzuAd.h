@@ -20,6 +20,16 @@ class ANZUADAPTER_API AAnzuAd : public AStaticMeshActor
     anzu::ChannelInfo* _channel;
     anzu::VisibilityInfo _visibility;
 
+    // Listener IDs for channel events — stored so they can be unregistered in EndPlay.
+    size_t _onPlaybackEmptyId     = 0;
+    size_t _onPlaybackInitId      = 0;
+    size_t _onPlaybackStartedId   = 0;
+    size_t _onPlaybackCompleteId  = 0;
+    size_t _onImpressionId        = 0;
+    size_t _onUpdateVisibilityId  = 0;
+    size_t _onApplyTextureId      = 0;
+    size_t _onShrinkToFitId       = 0;
+
     float original_scale_x = 1.f;
     float original_scale_y = 1.f;
 

@@ -21,6 +21,8 @@ namespace anzu
     ANZU_LOCK ChannelManager::RunningChannelsRWLock;
     ANZU_LOCK ChannelManager::RunningTexturesRWLock;
 
+    std::atomic<bool> ChannelManager::_isUninitializing = false;
+
     float ChannelManager::_time = 0.0f;
     float ChannelManager::_updateVisibilityInterval = 1.0f / CHECK_VISIBILITY_TIMES_PER_SECOND;
 
@@ -36,6 +38,8 @@ namespace anzu
 
     void ChannelManager::Initialize()
     {
+        _isUninitializing = false;
+
         Anzu_RegisterTextureInitCallback(onNativeTextureInit, nullptr);
         Anzu_RegisterTextureUpdateCallback(onNativeTextureUpdated, nullptr);
         Anzu_RegisterTextureImpressionCallback(onNativeTextureImpression, nullptr);
@@ -51,6 +55,12 @@ namespace anzu
 
     void ChannelManager::Uninitialize()
     {
+        // Set the flag before unregistering or destroying anything.
+        // All SDK-side native callbacks (texture init, update, etc.) check
+        // this flag and return early, preventing them from touching ChannelInfo
+        // objects that are about to be destroyed.
+        _isUninitializing = true;
+
         MessageManager::OnTextureEvents.Unregister(_onTextureEventId);
         MessageManager::OnPlacementEvents.Unregister(_onPlacementEventId);
 
@@ -64,6 +74,7 @@ namespace anzu
         {
             ANZU_SCOPE_LOCK lock(RunningChannelsRWLock, false);
 
+            channelsToDestroy.reserve(_runningChannelsById.size());
             for (auto& it : _runningChannelsById)
             {
                 channelsToDestroy.push_back(it.second);
@@ -73,6 +84,16 @@ namespace anzu
         for (const auto& channelInfo : channelsToDestroy)
         {
             channelInfo->OnChannelDestroyed.Invoke();
+
+            // Tell the SDK to release this channel instance. This stops the SDK
+            // decoder/renderer threads from firing texture callbacks for it,
+            // which in turn allows Anzu_ApplicationQuit() to return instead of
+            // spinning indefinitely waiting for those threads to finish.
+            Anzu__Texture_RemoveInstance(channelInfo->Id);
+
+            // Remove from our maps and delete the ChannelInfo (which destructs
+            // EngineTexture2D objects and calls UTexture2D::RemoveFromRoot).
+            removeChannelInfoFromMaps(channelInfo);
         }
     }
 
@@ -310,6 +331,11 @@ namespace anzu
     // Callback for "Update With Engine", passed from game engine to SDK
     void ChannelManager::CustomEngineTextureUpdateHandler_helper(void* userdata, void* nativeTexturePtr, int width, int height, void* data, int size)
     {
+        // Return immediately during shutdown. The SDK decoder thread may still
+        // call this after Uninitialize() — dropping the call here lets the
+        // thread finish quickly so Anzu_ApplicationQuit() can return.
+        if (_isUninitializing) return;
+
         ChannelInfo* channelInfo = findChannelInfoByNativePtr(nativeTexturePtr);
 
         if (channelInfo)
@@ -377,16 +403,20 @@ namespace anzu
 
     ChannelInfo* ChannelManager::findChannelInfoByNativePtr(const void* nativePtr)
     {
-        ChannelInfo* retCode = nullptr;
-        ANZU_SCOPE_LOCK lock(RunningTexturesRWLock, false);
-
-        auto it = _runningChannelsByTexturePtr.find(nativePtr);
-        if (it != _runningChannelsByTexturePtr.end())
+        // Release RunningTexturesRWLock before calling GetChannelInfoById, which
+        // acquires RunningChannelsRWLock. Holding T while waiting for C, while
+        // another path holds C and waits for T, produces an ABBA deadlock.
+        int channelId = -1;
         {
-            retCode = GetChannelInfoById(it->second);
+            ANZU_SCOPE_LOCK lock(RunningTexturesRWLock, false);
+            auto it = _runningChannelsByTexturePtr.find(nativePtr);
+            if (it != _runningChannelsByTexturePtr.end())
+            {
+                channelId = it->second;
+            }
         }
 
-        return retCode;
+        return (channelId >= 0) ? GetChannelInfoById(channelId) : nullptr;
     }
 
     bool ChannelManager::destroyChannel(ChannelInfo* channelInfo)
@@ -633,12 +663,24 @@ namespace anzu
 
     void ChannelManager::updateTexture()
     {
-        ANZU_SCOPE_LOCK lock (RunningChannelsRWLock, false);
-
-        for (const auto& entry : _runningChannelsById)
+        // Snapshot channel pointers under the lock, then process outside it.
+        // RenderManager::UpdateTexture can call back into ChannelManager
+        // (e.g. OnApplyTexture -> GetChannelInfoById), which would try to
+        // re-acquire RunningChannelsRWLock on the same thread. Because
+        // WritePreferredReadWriteLock blocks new readers when a writer is
+        // pending, holding the lock across that call causes a self-deadlock.
+        std::vector<ChannelInfo*> snapshot;
         {
-            ChannelInfo* channelInfo = entry.second;
+            ANZU_SCOPE_LOCK lock(RunningChannelsRWLock, false);
+            snapshot.reserve(_runningChannelsById.size());
+            for (const auto& entry : _runningChannelsById)
+            {
+                snapshot.push_back(entry.second);
+            }
+        }
 
+        for (ChannelInfo* channelInfo : snapshot)
+        {
             if (channelInfo)
             {
                 RenderManager::UpdateTexture(channelInfo->CurrTextureInfo);
@@ -698,6 +740,7 @@ namespace anzu
     // The 1st callback - gives us a token for this creative lifecycle
     void ChannelManager::onNativeTextureInit(void* userdata, int channelId, int token)
     {
+        if (_isUninitializing) return;
         executeOnTextureInit(channelId, token);
     }
 
@@ -706,6 +749,8 @@ namespace anzu
     // The render pipeline then uses renderId or the buffer to update the texture in DrawGame when dirty.
     void ChannelManager::onNativeTextureUpdated(void* userdata, int channelId, int token)
     {
+        if (_isUninitializing) return;
+
         ChannelInfo* channelInfo = GetChannelInfoById(channelId);
 
         if (channelInfo)
@@ -723,6 +768,7 @@ namespace anzu
 
     void ChannelManager::onNativeTextureImpression(void* userdata, int channelId, int token)
     {
+        if (_isUninitializing) return;
         executeOnPlacementImpression(channelId);
     }
 

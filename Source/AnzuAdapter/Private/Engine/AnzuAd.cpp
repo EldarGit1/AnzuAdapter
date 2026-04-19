@@ -95,35 +95,35 @@ void AAnzuAd::BeginPlay()
     
     _channel->IsVisible = true;
 
-    _channel->OnPlaybackEmpty.Register( [this] 
+    _onPlaybackEmptyId = _channel->OnPlaybackEmpty.Register( [this] 
     { 
         anzuStats.empties++;
         Log::Debug("Got empty");
     });
 
-    _channel->OnPlaybackInit.Register( [this] { /*OnPlaybackInit.Invoke();*/ Log::Error("INIT"); });
+    _onPlaybackInitId = _channel->OnPlaybackInit.Register( [this] { /*OnPlaybackInit.Invoke();*/ Log::Error("INIT"); });
 
-    _channel->OnPlaybackStarted.Register( [this] { /*OnPlaybackStarted.Invoke();*/ Log::Error("STARTED"); });
+    _onPlaybackStartedId = _channel->OnPlaybackStarted.Register( [this] { /*OnPlaybackStarted.Invoke();*/ Log::Error("STARTED"); });
 
-    _channel->OnPlaybackComplete.Register([this] 
+    _onPlaybackCompleteId = _channel->OnPlaybackComplete.Register([this] 
     { 
         Log::Debug("Got Completed");
         anzuStats.completed++;
     });
 
-    _channel->OnImpression.Register([this] 
+    _onImpressionId = _channel->OnImpression.Register([this] 
     { 
         Log::Debug("Got impression");
         anzuStats.impressions++; 
     });
 
-    _channel->OnUpdateVisibility.Register([this] {
+    _onUpdateVisibilityId = _channel->OnUpdateVisibility.Register([this] {
         AsyncTask(ENamedThreads::GameThread, [this]() { updateVis(); });
     });
 
-    _channel->OnApplyTexture.Register([this] { applyTexture(); });
+    _onApplyTextureId = _channel->OnApplyTexture.Register([this] { applyTexture(); });
 
-    _channel->OnShrinkToFit.Register([this] {
+    _onShrinkToFitId = _channel->OnShrinkToFit.Register([this] {
         AsyncTask(ENamedThreads::GameThread, [this]() { applyShrink(); });
     });
 
@@ -178,6 +178,21 @@ void AAnzuAd::Tick(float DeltaTime)
 
 void AAnzuAd::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+    // Unregister all channel event listeners before this actor is destroyed.
+    // Without this, SDK/engine callbacks can fire lambdas that capture 'this'
+    // after the actor is gone, causing crashes or preventing engine exit.
+    if (_channel)
+    {
+        _channel->OnPlaybackEmpty.Unregister(_onPlaybackEmptyId);
+        _channel->OnPlaybackInit.Unregister(_onPlaybackInitId);
+        _channel->OnPlaybackStarted.Unregister(_onPlaybackStartedId);
+        _channel->OnPlaybackComplete.Unregister(_onPlaybackCompleteId);
+        _channel->OnImpression.Unregister(_onImpressionId);
+        _channel->OnUpdateVisibility.Unregister(_onUpdateVisibilityId);
+        _channel->OnApplyTexture.Unregister(_onApplyTextureId);
+        _channel->OnShrinkToFit.Unregister(_onShrinkToFitId);
+    }
+
     Super::EndPlay(EndPlayReason);
 }
 

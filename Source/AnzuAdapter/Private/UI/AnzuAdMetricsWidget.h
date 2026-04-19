@@ -15,10 +15,19 @@ public:
     virtual bool Initialize() override;
 
     UFUNCTION(BlueprintCallable, Category = "Anzu|UI")
-    void UpdateMetrics(float InAngle, float InVisibility, float InViewability);
+    void UpdateMetrics(int32 InEmpties, int32 InImpressions, int32 InCompleted, float InAngle, float InVisibility, float InViewability);
 
 private:
     void DrawWidget();
+
+    UPROPERTY()
+    class UTextBlock* EmptiesText;
+
+    UPROPERTY()
+    class UTextBlock* ImpressionsText;
+
+    UPROPERTY()
+    class UTextBlock* CompletedText;
 
     UPROPERTY()
     class UTextBlock* AngleText;

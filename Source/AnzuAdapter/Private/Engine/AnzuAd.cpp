@@ -95,15 +95,27 @@ void AAnzuAd::BeginPlay()
     
     _channel->IsVisible = true;
 
-    _channel->OnPlaybackEmpty.Register( [this] { /*OnPlaybackEmpty.Invoke();*/ Log::Error("EMPTY"); });
+    _channel->OnPlaybackEmpty.Register( [this] 
+    { 
+        anzuStats.empties++;
+        Log::Debug("Got empty");
+    });
 
     _channel->OnPlaybackInit.Register( [this] { /*OnPlaybackInit.Invoke();*/ Log::Error("INIT"); });
 
     _channel->OnPlaybackStarted.Register( [this] { /*OnPlaybackStarted.Invoke();*/ Log::Error("STARTED"); });
 
-    _channel->OnPlaybackComplete.Register([this] { /*OnPlaybackComplete.Invoke();*/ Log::Error("Complete"); });
+    _channel->OnPlaybackComplete.Register([this] 
+    { 
+        Log::Debug("Got Completed");
+        anzuStats.completed++;
+    });
 
-    _channel->OnImpression.Register([this] { /*OnChannelImpression.Invoke();*/Log::Error("IMPRESSION"); });
+    _channel->OnImpression.Register([this] 
+    { 
+        Log::Debug("Got impression");
+        anzuStats.impressions++; 
+    });
 
     _channel->OnUpdateVisibility.Register([this] {
         AsyncTask(ENamedThreads::GameThread, [this]() { updateVis(); });
@@ -182,7 +194,7 @@ void AAnzuAd::updateVis()
 
     if (_metricsWidget)
     {
-        _metricsWidget->UpdateMetrics(_visibility.Angle, _visibility.Visibility, _visibility.Viewability);
+        _metricsWidget->UpdateMetrics(anzuStats.empties, anzuStats.impressions, anzuStats.completed, _visibility.Angle, _visibility.Visibility, _visibility.Viewability);
     }
 
     anzu::Log::Error("Angle is %f", _visibility.Angle);

@@ -25,6 +25,14 @@ class ANZUADAPTER_API AAnzuAd : public AStaticMeshActor
 
     float _widgetForwardOffset = 100.0f;
 
+    struct stats
+    {
+        int empties = 0;
+        int impressions = 0;
+        int completed = 0;
+    };
+    stats anzuStats;
+
     void applyTexture();
     void updateVis();
     void applyShrink();

@@ -25,4 +25,9 @@ namespace anzu
     {
         return _currentActiveCamera;
     }
+
+    void AnzuCamera::SetActiveCamera(APlayerCameraManager* newCam)
+    {
+        _currentActiveCamera = newCam;
+    }
 }

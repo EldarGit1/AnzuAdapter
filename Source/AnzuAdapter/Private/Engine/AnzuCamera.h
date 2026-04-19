@@ -14,6 +14,7 @@ namespace anzu
 
         void Update(UObject* WorldContextObject, int32 PlayerIndex = 0);
         APlayerCameraManager* GetCurrentActiveCamera() const;
+        void SetActiveCamera(APlayerCameraManager* newCam);
 
     private:
         AnzuCamera() = default;

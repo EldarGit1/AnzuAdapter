@@ -11,6 +11,9 @@
 UAnzuAdMetricsWidget::UAnzuAdMetricsWidget(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
 {
+    EmptiesText = nullptr;
+    ImpressionsText = nullptr;
+    CompletedText = nullptr;
     AngleText = nullptr;
     VisibilityText = nullptr;
     ViewabilityText = nullptr;
@@ -59,15 +62,33 @@ void UAnzuAdMetricsWidget::DrawWidget()
         col->AddChildToVerticalBox(row);
     };
 
-    MakeRow(TEXT("Angle: "),      AngleText);
-    MakeRow(TEXT("Visibility: "), VisibilityText);
-    MakeRow(TEXT("Viewability: "),ViewabilityText);
+    MakeRow(TEXT("Empties: "),     EmptiesText);
+    MakeRow(TEXT("Impressions: "), ImpressionsText);
+    MakeRow(TEXT("Completed: "),   CompletedText);
+    MakeRow(TEXT("Angle: "),       AngleText);
+    MakeRow(TEXT("Visibility: "),  VisibilityText);
+    MakeRow(TEXT("Viewability: "), ViewabilityText);
 
     WidgetTree->RootWidget = root;
 }
 
-void UAnzuAdMetricsWidget::UpdateMetrics(float InAngle, float InVisibility, float InViewability)
+void UAnzuAdMetricsWidget::UpdateMetrics(int32 InEmpties, int32 InImpressions, int32 InCompleted, float InAngle, float InVisibility, float InViewability)
 {
+    if (EmptiesText)
+    {
+        EmptiesText->SetText(FText::FromString(FString::Printf(TEXT("Empties: %d"), InEmpties)));
+    }
+
+    if (ImpressionsText)
+    {
+        ImpressionsText->SetText(FText::FromString(FString::Printf(TEXT("Impressions: %d"), InImpressions)));
+    }
+
+    if (CompletedText)
+    {
+        CompletedText->SetText(FText::FromString(FString::Printf(TEXT("Completed: %d"), InCompleted)));
+    }
+
     if (AngleText)
     {
         AngleText->SetText(FText::FromString(FString::Printf(TEXT("Angle: %.2f"), InAngle)));

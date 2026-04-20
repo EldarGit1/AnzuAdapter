@@ -316,9 +316,8 @@ void AAnzuAd::calcVisiblity()
 
 void AAnzuAd::calcViewability()
 {
-    UStaticMeshComponent* staticMeshComponent = GetStaticMeshComponent();
     APlayerController* playerController = UGameplayStatics::GetPlayerController(this, 0);
-    if (!staticMeshComponent || !playerController)
+    if (!playerController)
     {
         _visibility.Viewability = 0.0f;
         return;
@@ -373,77 +372,26 @@ void AAnzuAd::calcViewability()
         return;
     }
 
-    constexpr int32 samplesX = 8;
-    constexpr int32 samplesY = 8;
-    int32 totalSamples = 0;
-    int32 visibleSamples = 0;
+    const float totalActorWidth = maxX - minX;
+    const float totalActorHeight = maxY - minY;
+    const float totalActorArea = totalActorWidth * totalActorHeight;
 
-    const float width = maxX - minX;
-    const float height = maxY - minY;
-
-    FCollisionQueryParams queryParams(SCENE_QUERY_STAT(AnzuViewability), true);
-    queryParams.bReturnPhysicalMaterial = false;
-    queryParams.bTraceComplex = true;
-
-    FCollisionQueryParams occlusionQueryParams(SCENE_QUERY_STAT(AnzuViewabilityOcclusion), true);
-    occlusionQueryParams.bReturnPhysicalMaterial = false;
-    occlusionQueryParams.bTraceComplex = true;
-    occlusionQueryParams.AddIgnoredActor(this);
-
-    for (int32 y = 0; y < samplesY; ++y)
-    {
-        for (int32 x = 0; x < samplesX; ++x)
-        {
-            const float sampleX = minX + ((static_cast<float>(x) + 0.5f) / static_cast<float>(samplesX)) * width;
-            const float sampleY = minY + ((static_cast<float>(y) + 0.5f) / static_cast<float>(samplesY)) * height;
-
-            if (sampleX < 0.0f || sampleX > static_cast<float>(viewportX) || sampleY < 0.0f || sampleY > static_cast<float>(viewportY))
-            {
-                continue;
-            }
-
-            FVector rayOrigin;
-            FVector rayDirection;
-            if (!playerController->DeprojectScreenPositionToWorld(sampleX, sampleY, rayOrigin, rayDirection))
-            {
-                continue;
-            }
-
-            const FVector traceStart = rayOrigin;
-            const FVector traceEnd = traceStart + rayDirection.GetSafeNormal() * 100000.0f;
-
-            // Count only pixels that actually belong to this mesh in the denominator.
-            FHitResult meshHit;
-            if (!staticMeshComponent->LineTraceComponent(meshHit, traceStart, traceEnd, queryParams))
-            {
-                continue;
-            }
-
-            ++totalSamples;
-
-            const FVector occlusionTraceEnd = meshHit.ImpactPoint - (rayDirection.GetSafeNormal() * 0.1f);
-            FHitResult occlusionHit;
-            const bool bOccluded = GetWorld() && GetWorld()->LineTraceSingleByChannel(
-                occlusionHit,
-                traceStart,
-                occlusionTraceEnd,
-                ECC_Visibility,
-                occlusionQueryParams);
-
-            if (!bOccluded)
-            {
-                ++visibleSamples;
-            }
-        }
-    }
-
-    if (totalSamples <= 0)
+    if (totalActorArea <= KINDA_SMALL_NUMBER)
     {
         _visibility.Viewability = 0.0f;
         return;
     }
 
-    _visibility.Viewability = FMath::Clamp(static_cast<float>(visibleSamples) / static_cast<float>(totalSamples), 0.0f, 1.0f);
+    const float clippedMinX = FMath::Clamp(minX, 0.0f, static_cast<float>(viewportX));
+    const float clippedMinY = FMath::Clamp(minY, 0.0f, static_cast<float>(viewportY));
+    const float clippedMaxX = FMath::Clamp(maxX, 0.0f, static_cast<float>(viewportX));
+    const float clippedMaxY = FMath::Clamp(maxY, 0.0f, static_cast<float>(viewportY));
+
+    const float visibleActorWidth = FMath::Max(0.0f, clippedMaxX - clippedMinX);
+    const float visibleActorHeight = FMath::Max(0.0f, clippedMaxY - clippedMinY);
+    const float visibleActorArea = visibleActorWidth * visibleActorHeight;
+
+    _visibility.Viewability = FMath::Clamp(visibleActorArea / totalActorArea, 0.0f, 1.0f);
 }
 
 void AAnzuAd::applyShrink()

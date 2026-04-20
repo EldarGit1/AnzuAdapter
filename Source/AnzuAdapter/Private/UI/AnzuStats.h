@@ -2,8 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "AnzuAdMetricsWidget.generated.h"
-
+#include "AnzuStats.generated.h"
+//TODO rename to anzu stats
 UCLASS()
 class ANZUADAPTER_API UAnzuAdMetricsWidget : public UUserWidget
 {

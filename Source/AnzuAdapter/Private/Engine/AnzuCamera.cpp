@@ -23,11 +23,17 @@ namespace anzu
 
     APlayerCameraManager* AnzuCamera::GetCurrentActiveCamera() const
     {
-        return _currentActiveCamera;
+        
+        return _manualCamera ? _manualCamera : _currentActiveCamera;
     }
 
-    void AnzuCamera::SetActiveCamera(APlayerCameraManager* newCam)
+    void AnzuCamera::SetManualCamera(APlayerCameraManager* newCam)
     {
-        _currentActiveCamera = newCam;
+        _manualCamera = newCam;
+    }
+
+    void AnzuCamera::ResetManualCamera()
+    {
+        _manualCamera = nullptr;
     }
 }

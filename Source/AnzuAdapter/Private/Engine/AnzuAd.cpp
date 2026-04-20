@@ -6,10 +6,10 @@
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Components/WidgetComponent.h"
-#include "UI/AnzuAdMetricsWidget.h"
+#include "UI/AnzuStats.h"
 
 using namespace anzu;
-
+//todo work against anzu math where needed
 AAnzuAd::AAnzuAd()
 {
     PrimaryActorTick.bCanEverTick = true;
@@ -383,13 +383,17 @@ void AAnzuAd::calcViewability()
 
     FCollisionQueryParams queryParams(SCENE_QUERY_STAT(AnzuViewability), true);
     queryParams.bReturnPhysicalMaterial = false;
+    queryParams.bTraceComplex = true;
+
+    FCollisionQueryParams occlusionQueryParams(SCENE_QUERY_STAT(AnzuViewabilityOcclusion), true);
+    occlusionQueryParams.bReturnPhysicalMaterial = false;
+    occlusionQueryParams.bTraceComplex = true;
+    occlusionQueryParams.AddIgnoredActor(this);
 
     for (int32 y = 0; y < samplesY; ++y)
     {
         for (int32 x = 0; x < samplesX; ++x)
         {
-            ++totalSamples;
-
             const float sampleX = minX + ((static_cast<float>(x) + 0.5f) / static_cast<float>(samplesX)) * width;
             const float sampleY = minY + ((static_cast<float>(y) + 0.5f) / static_cast<float>(samplesY)) * height;
 
@@ -405,12 +409,28 @@ void AAnzuAd::calcViewability()
                 continue;
             }
 
-            FHitResult hit;
             const FVector traceStart = rayOrigin;
             const FVector traceEnd = traceStart + rayDirection.GetSafeNormal() * 100000.0f;
-            const bool bHit = GetWorld() && GetWorld()->LineTraceSingleByChannel(hit, traceStart, traceEnd, ECC_Visibility, queryParams);
 
-            if (bHit && hit.GetActor() == this)
+            // Count only pixels that actually belong to this mesh in the denominator.
+            FHitResult meshHit;
+            if (!staticMeshComponent->LineTraceComponent(meshHit, traceStart, traceEnd, queryParams))
+            {
+                continue;
+            }
+
+            ++totalSamples;
+
+            const FVector occlusionTraceEnd = meshHit.ImpactPoint - (rayDirection.GetSafeNormal() * 0.1f);
+            FHitResult occlusionHit;
+            const bool bOccluded = GetWorld() && GetWorld()->LineTraceSingleByChannel(
+                occlusionHit,
+                traceStart,
+                occlusionTraceEnd,
+                ECC_Visibility,
+                occlusionQueryParams);
+
+            if (!bOccluded)
             {
                 ++visibleSamples;
             }

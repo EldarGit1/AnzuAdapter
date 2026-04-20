@@ -4,7 +4,7 @@
 #include "Engine/TextureDefines.h"
 #include "Misc/AssertionMacros.h"
 #include "Core/Log/Log.h"
-
+//todo verify switch r/b
 EngineTexture2D::EngineTexture2D()
     : _texture(nullptr)
 {
@@ -43,7 +43,7 @@ void EngineTexture2D::UpdateTexture(int width,
         uint8* uploadData = new uint8[size];
         FMemory::Memcpy(uploadData, data, static_cast<SIZE_T>(size));
 
-        if (switchRB)
+        if (/*switchRB*/true)
         {
             const int32 pixelCount = width * height;
             for (int32 pixelIndex = 0; pixelIndex < pixelCount; ++pixelIndex)

@@ -14,11 +14,13 @@ namespace anzu
 
         void Update(UObject* WorldContextObject, int32 PlayerIndex = 0);
         APlayerCameraManager* GetCurrentActiveCamera() const;
-        void SetActiveCamera(APlayerCameraManager* newCam);
+        void SetManualCamera(APlayerCameraManager* newCam);
+        void ResetManualCamera();
 
     private:
         AnzuCamera() = default;
 
         APlayerCameraManager* _currentActiveCamera = nullptr;
+        APlayerCameraManager* _manualCamera = nullptr;
     };
 }

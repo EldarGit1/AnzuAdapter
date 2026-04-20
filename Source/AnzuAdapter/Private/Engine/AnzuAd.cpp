@@ -3,12 +3,26 @@
 #include "../Core/Log/Log.h"
 #include "Engine/AnzuCamera.h"
 #include "EngineTexture2D.h"
+#include "../Core/Utilities/Math/Vec3.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Components/WidgetComponent.h"
 #include "UI/AnzuStats.h"
 
 using namespace anzu;
+
+namespace
+{
+    static Vec3 ToVec3(const FVector& InVector)
+    {
+        return Vec3(InVector.X, InVector.Y, InVector.Z);
+    }
+
+    static FVector ToFVector(const Vec3& InVector)
+    {
+        return FVector(InVector.x, InVector.y, InVector.z);
+    }
+}
 //todo work against anzu math where needed
 AAnzuAd::AAnzuAd()
 {
@@ -134,16 +148,18 @@ void AAnzuAd::BeginPlay()
 
         // Derive draw size and forward offset from the actor mesh bounds at spawn time.
         // These are fixed for the lifetime of the actor regardless of later scale changes.
-        FVector boundsOrigin, boundsExtent;
+        FVector boundsOrigin;
+        FVector boundsExtent;
         GetActorBounds(false, boundsOrigin, boundsExtent);
+        const Vec3 boundsExtentVec = ToVec3(boundsExtent);
 
         // Width = Y extent * 2, Height = Z extent * 2 (Unreal units → widget pixels 1:1)
-        const int32 drawW = FMath::Max(FMath::RoundToInt(boundsExtent.Y * 2.0f), 64);
-        const int32 drawH = FMath::Max(FMath::RoundToInt(boundsExtent.Z * 2.0f), 32);
+        const int32 drawW = FMath::Max(FMath::RoundToInt(boundsExtentVec.y * 2.0f), 64);
+        const int32 drawH = FMath::Max(FMath::RoundToInt(boundsExtentVec.z * 2.0f), 32);
         _metricsWidgetComponent->SetDrawSize(FIntPoint(drawW, drawH));
 
         // Push the widget just past the front face of the mesh (+5 UU gap)
-        _widgetForwardOffset = boundsExtent.X + 5.0f;
+        _widgetForwardOffset = boundsExtentVec.x + 5.0f;
     }
 
     Super::BeginPlay();
@@ -159,7 +175,10 @@ void AAnzuAd::Tick(float DeltaTime)
         APlayerCameraManager* cameraManager = anzuCamera.GetCurrentActiveCamera();
         if (cameraManager)
         {
-            const FVector widgetLocation = GetActorLocation() + (GetActorForwardVector() * _widgetForwardOffset);
+            const Vec3 actorLocation = ToVec3(GetActorLocation());
+            const Vec3 actorForward = ToVec3(GetActorForwardVector());
+            const Vec3 widgetLocationVec = actorLocation + (actorForward * _widgetForwardOffset);
+            const FVector widgetLocation = ToFVector(widgetLocationVec);
             _metricsWidgetComponent->SetWorldLocation(widgetLocation);
             const FRotator lookAtRotation = (cameraManager->GetCameraLocation() - widgetLocation).Rotation();
             _metricsWidgetComponent->SetWorldRotation(lookAtRotation);
@@ -231,9 +250,13 @@ void AAnzuAd::calcAngle()
         APlayerCameraManager* cameraManager = anzuCamera.GetCurrentActiveCamera();
         if (cameraManager)
         {
-            const FVector cameraForward = cameraManager->GetActorForwardVector().GetSafeNormal();
-            const FVector meshForward = staticMeshComponent->GetForwardVector().GetSafeNormal();
-            const float dot = FMath::Clamp(FVector::DotProduct(cameraForward, meshForward), -1.0f, 1.0f);
+            const Vec3 cameraForward = ToVec3(cameraManager->GetActorForwardVector().GetSafeNormal());
+            const Vec3 meshForward = ToVec3(staticMeshComponent->GetForwardVector().GetSafeNormal());
+            const float dotValue =
+                (cameraForward.x * meshForward.x) +
+                (cameraForward.y * meshForward.y) +
+                (cameraForward.z * meshForward.z);
+            const float dot = FMath::Clamp(dotValue, -1.0f, 1.0f);
             _visibility.Angle = FMath::RadiansToDegrees(FMath::Acos(dot));
         }
     }
@@ -253,17 +276,19 @@ void AAnzuAd::calcVisiblity()
             FVector boundsOrigin;
             FVector boundsExtent;
             GetActorBounds(true, boundsOrigin, boundsExtent);
+            const Vec3 boundsOriginVec = ToVec3(boundsOrigin);
+            const Vec3 boundsExtentVec = ToVec3(boundsExtent);
 
-            TArray<FVector> corners;
+            TArray<Vec3> corners;
             corners.Reserve(8);
-            corners.Add(boundsOrigin + FVector( boundsExtent.X,  boundsExtent.Y,  boundsExtent.Z));
-            corners.Add(boundsOrigin + FVector( boundsExtent.X,  boundsExtent.Y, -boundsExtent.Z));
-            corners.Add(boundsOrigin + FVector( boundsExtent.X, -boundsExtent.Y,  boundsExtent.Z));
-            corners.Add(boundsOrigin + FVector( boundsExtent.X, -boundsExtent.Y, -boundsExtent.Z));
-            corners.Add(boundsOrigin + FVector(-boundsExtent.X,  boundsExtent.Y,  boundsExtent.Z));
-            corners.Add(boundsOrigin + FVector(-boundsExtent.X,  boundsExtent.Y, -boundsExtent.Z));
-            corners.Add(boundsOrigin + FVector(-boundsExtent.X, -boundsExtent.Y,  boundsExtent.Z));
-            corners.Add(boundsOrigin + FVector(-boundsExtent.X, -boundsExtent.Y, -boundsExtent.Z));
+            corners.Add(boundsOriginVec + Vec3( boundsExtentVec.x,  boundsExtentVec.y,  boundsExtentVec.z));
+            corners.Add(boundsOriginVec + Vec3( boundsExtentVec.x,  boundsExtentVec.y, -boundsExtentVec.z));
+            corners.Add(boundsOriginVec + Vec3( boundsExtentVec.x, -boundsExtentVec.y,  boundsExtentVec.z));
+            corners.Add(boundsOriginVec + Vec3( boundsExtentVec.x, -boundsExtentVec.y, -boundsExtentVec.z));
+            corners.Add(boundsOriginVec + Vec3(-boundsExtentVec.x,  boundsExtentVec.y,  boundsExtentVec.z));
+            corners.Add(boundsOriginVec + Vec3(-boundsExtentVec.x,  boundsExtentVec.y, -boundsExtentVec.z));
+            corners.Add(boundsOriginVec + Vec3(-boundsExtentVec.x, -boundsExtentVec.y,  boundsExtentVec.z));
+            corners.Add(boundsOriginVec + Vec3(-boundsExtentVec.x, -boundsExtentVec.y, -boundsExtentVec.z));
 
             bool bHasProjectedPoint = false;
             float minX = TNumericLimits<float>::Max();
@@ -271,10 +296,10 @@ void AAnzuAd::calcVisiblity()
             float maxX = TNumericLimits<float>::Lowest();
             float maxY = TNumericLimits<float>::Lowest();
 
-            for (const FVector& corner : corners)
+            for (const Vec3& corner : corners)
             {
                 FVector2D screenPos;
-                if (playerController->ProjectWorldLocationToScreen(corner, screenPos, true))
+                if (playerController->ProjectWorldLocationToScreen(ToFVector(corner), screenPos, true))
                 {
                     bHasProjectedPoint = true;
                     minX = FMath::Min(minX, screenPos.X);
@@ -326,17 +351,19 @@ void AAnzuAd::calcViewability()
     FVector boundsOrigin;
     FVector boundsExtent;
     GetActorBounds(true, boundsOrigin, boundsExtent);
+    const Vec3 boundsOriginVec = ToVec3(boundsOrigin);
+    const Vec3 boundsExtentVec = ToVec3(boundsExtent);
 
-    TArray<FVector> corners;
+    TArray<Vec3> corners;
     corners.Reserve(8);
-    corners.Add(boundsOrigin + FVector( boundsExtent.X,  boundsExtent.Y,  boundsExtent.Z));
-    corners.Add(boundsOrigin + FVector( boundsExtent.X,  boundsExtent.Y, -boundsExtent.Z));
-    corners.Add(boundsOrigin + FVector( boundsExtent.X, -boundsExtent.Y,  boundsExtent.Z));
-    corners.Add(boundsOrigin + FVector( boundsExtent.X, -boundsExtent.Y, -boundsExtent.Z));
-    corners.Add(boundsOrigin + FVector(-boundsExtent.X,  boundsExtent.Y,  boundsExtent.Z));
-    corners.Add(boundsOrigin + FVector(-boundsExtent.X,  boundsExtent.Y, -boundsExtent.Z));
-    corners.Add(boundsOrigin + FVector(-boundsExtent.X, -boundsExtent.Y,  boundsExtent.Z));
-    corners.Add(boundsOrigin + FVector(-boundsExtent.X, -boundsExtent.Y, -boundsExtent.Z));
+    corners.Add(boundsOriginVec + Vec3( boundsExtentVec.x,  boundsExtentVec.y,  boundsExtentVec.z));
+    corners.Add(boundsOriginVec + Vec3( boundsExtentVec.x,  boundsExtentVec.y, -boundsExtentVec.z));
+    corners.Add(boundsOriginVec + Vec3( boundsExtentVec.x, -boundsExtentVec.y,  boundsExtentVec.z));
+    corners.Add(boundsOriginVec + Vec3( boundsExtentVec.x, -boundsExtentVec.y, -boundsExtentVec.z));
+    corners.Add(boundsOriginVec + Vec3(-boundsExtentVec.x,  boundsExtentVec.y,  boundsExtentVec.z));
+    corners.Add(boundsOriginVec + Vec3(-boundsExtentVec.x,  boundsExtentVec.y, -boundsExtentVec.z));
+    corners.Add(boundsOriginVec + Vec3(-boundsExtentVec.x, -boundsExtentVec.y,  boundsExtentVec.z));
+    corners.Add(boundsOriginVec + Vec3(-boundsExtentVec.x, -boundsExtentVec.y, -boundsExtentVec.z));
 
     bool bHasProjectedPoint = false;
     float minX = TNumericLimits<float>::Max();
@@ -344,10 +371,10 @@ void AAnzuAd::calcViewability()
     float maxX = TNumericLimits<float>::Lowest();
     float maxY = TNumericLimits<float>::Lowest();
 
-    for (const FVector& corner : corners)
+    for (const Vec3& corner : corners)
     {
         FVector2D screenPos;
-        if (playerController->ProjectWorldLocationToScreen(corner, screenPos, true))
+        if (playerController->ProjectWorldLocationToScreen(ToFVector(corner), screenPos, true))
         {
             bHasProjectedPoint = true;
             minX = FMath::Min(minX, screenPos.X);
@@ -418,8 +445,8 @@ void AAnzuAd::applyShrink()
     UStaticMeshComponent* staticMeshComponent = GetStaticMeshComponent();
     if(staticMeshComponent)
     {
-        FVector currentScale = staticMeshComponent->GetRelativeScale3D();
-        staticMeshComponent->SetRelativeScale3D(FVector(currentScale.Z, newScaleX, newScaleY));
+        const Vec3 currentScaleVec = ToVec3(staticMeshComponent->GetRelativeScale3D());
+        staticMeshComponent->SetRelativeScale3D(ToFVector(Vec3(currentScaleVec.z, newScaleX, newScaleY)));
     }
 }
 

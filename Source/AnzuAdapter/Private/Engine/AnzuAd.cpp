@@ -48,20 +48,11 @@ AAnzuAd::AAnzuAd()
 void AAnzuAd::BeginPlay()
 {
     UStaticMeshComponent* staticMeshComponent = GetStaticMeshComponent();
-    if(staticMeshComponent == nullptr)
-    {
-        //ERROR
-    }
+    check(staticMeshComponent != nullptr);
     int32 materialsNumber = staticMeshComponent->GetNumMaterials();
-    if(materialsNumber != 1)
-    {
-        //ERROR
-    }
+    checkf(materialsNumber == 1, TEXT("AnzuAd: Expected exactly 1 material on the mesh, found %d"), materialsNumber);
     UMaterialInterface* originalMaterial = staticMeshComponent->GetMaterial(0);
-    if(originalMaterial == nullptr)
-    {
-        //ERROR
-    }
+    check(originalMaterial != nullptr);
     TArray<UTexture*> originalTexturesArray;
     originalMaterial->GetUsedTextures(
         originalTexturesArray
@@ -70,11 +61,7 @@ void AAnzuAd::BeginPlay()
         , ERHIFeatureLevel::Type::Num
         , true
     );
-    if (originalTexturesArray.Num() == 0)
-    {
-        //ERROR
-        Log::Error("originalTexturesArray is empty.");                   
-    }
+    checkf(originalTexturesArray.Num() > 0, TEXT("AnzuAd: No textures found on the original material."));
     _texture = Cast<UTexture2D>(originalTexturesArray[0]);
 
     if(_texture == nullptr)
@@ -431,6 +418,7 @@ void AAnzuAd::applyShrink()
     float newScaleY = original_scale_y;
 
     float new_ar = _channel->NextTextureInfo.AspectRatio;
+    check(!FMath::IsNearlyZero(newScaleY));
     float orig_ar = newScaleX / newScaleY;
 
     if(new_ar < orig_ar)
@@ -452,7 +440,9 @@ void AAnzuAd::applyShrink()
 
 void AAnzuAd::applyTexture()
 {
+    check(_channel != nullptr);
     UStaticMeshComponent* staticMeshComponent = GetStaticMeshComponent();
+    check(staticMeshComponent != nullptr);
     UTexture2D* texPtr = nullptr;
     if (_channel->CurrTextureInfo.Texture)
     {
@@ -466,7 +456,7 @@ void AAnzuAd::applyTexture()
     if (/*texPtr != nullptr*/ true)
     {
         UMaterialInstanceDynamic* dynamicMaterial = staticMeshComponent->CreateAndSetMaterialInstanceDynamic(0);
-        if (dynamicMaterial == nullptr)
+        if (!ensure(dynamicMaterial != nullptr))
         {
             Log::Error("Failed to create dynamic material instance.");
         }
